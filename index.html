@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOVA AI Assistant</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #101827;
+  color: white;
+}
+
+header {
+  padding: 20px;
+  text-align: center;
+  background: #17243a;
+  border-bottom: 1px solid #34445e;
+}
+
+header h1 {
+  color: #38bdf8;
+  margin: 0;
+}
+
+header p {
+  color: #aab8cc;
+}
+
+#chatBox {
+  height: 65vh;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.message {
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 12px;
+  max-width: 85%;
+  line-height: 1.5;
+}
+
+.user {
+  background: #075985;
+  margin-left: auto;
+}
+
+.bot {
+  background: #25344b;
+  margin-right: auto;
+}
+
+.controls {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  padding: 15px;
+  background: #17243a;
+  display: flex;
+  gap: 8px;
+}
+
+input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  outline: none;
+  font-size: 16px;
+}
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  background: #0284c7;
+  color: white;
+  font-size: 15px;
+}
+
+button:active {
+  opacity: 0.7;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>🤖 NOVA AI</h1>
+  <p>Your Personal AI Assistant</p>
+</header>
+
+<div id="chatBox">
+  <div class="message bot">
+    Hello! I am NOVA AI. How can I help you?
+  </div>
+</div>
+
+<div class="controls">
+  <input id="userInput" placeholder="Message NOVA..." />
+  <button onclick="sendMessage()">Send</button>
+  <button onclick="startVoice()">🎤</button>
+</div>
+
+<script>
+const chatBox = document.getElementById("chatBox");
+const userInput = document.getElementById("userInput");
+
+function addMessage(message, type) {
+  const div = document.createElement("div");
+  div.className = "message " + type;
+  div.textContent = message;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+async function sendMessage() {
+  const message = userInput.value.trim();
+
+  if (!message) return;
+
+  addMessage(message, "user");
+  userInput.value = "";
+
+  try {
+    const response = await fetch("/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ message })
+    });
+
+    if (!response.ok) {
+      throw new Error("Server error");
+    }
+
+    const data = await response.json();
+    addMessage(data.reply, "bot");
+
+    const speech = new SpeechSynthesisUtterance(data.reply);
+    speech.lang = "en-IN";
+    speechSynthesis.speak(speech);
+
+  } catch (error) {
+    addMessage(
+      "Unable to connect to NOVA server. Please try again.",
+      "bot"
+    );
+  }
+}
+
+userInput.addEventListener("keydown", function(event) {
+  if (event.key === "Enter") sendMessage();
+});
+
+function startVoice() {
+  const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    addMessage("Voice recognition is not supported in this browser.", "bot");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-IN";
+  recognition.onresult = function(event) {
+    userInput.value = event.results[0][0].transcript;
+    sendMessage();
+  };
+
+  recognition.onerror = function() {
+    addMessage("Voice recognition error. Please try again.", "bot");
+  };
+
+  recognition.start();
+}
+</script>
+
+</body>
+</html>
