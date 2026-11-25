@@ -3,9 +3,9 @@
   "name": "nova-ai",
   "version": "1.0.0",
   "description": "NOVA Personal AI Assistant",
-  "main": "Index.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node Index.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.21.2",
