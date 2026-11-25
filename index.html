@@ -7,9 +7,7 @@
 <title>NOVA AI Assistant</title>
 
 <style>
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -25,19 +23,21 @@ header {
   border-bottom: 1px solid #34445e;
 }
 
-header h1 {
-  color: #38bdf8;
-  margin: 0;
-}
+header h1 { color: #38bdf8; margin: 0; }
+header p { color: #aab8cc; }
 
-header p {
-  color: #aab8cc;
+#memoryStatus {
+  color: #38bdf8;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px;
 }
 
 #chatBox {
-  height: 65vh;
+  height: 60vh;
   overflow-y: auto;
   padding: 15px;
+  padding-bottom: 90px;
 }
 
 .message {
@@ -46,6 +46,7 @@ header p {
   border-radius: 12px;
   max-width: 85%;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .user {
@@ -86,10 +87,6 @@ button {
   color: white;
   font-size: 15px;
 }
-
-button:active {
-  opacity: 0.7;
-}
 </style>
 </head>
 
@@ -99,6 +96,8 @@ button:active {
   <h1>🤖 NOVA AI</h1>
   <p>Your Personal AI Assistant</p>
 </header>
+
+<div id="memoryStatus">🧠 Personal Memory Active</div>
 
 <div id="chatBox">
   <div class="message bot">
@@ -116,6 +115,25 @@ button:active {
 const chatBox = document.getElementById("chatBox");
 const userInput = document.getElementById("userInput");
 
+const MEMORY_KEY = "nova_personal_memory";
+
+function getMemory() {
+  try {
+    return JSON.parse(localStorage.getItem(MEMORY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveMemory(info) {
+  const memories = getMemory();
+
+  if (!memories.includes(info)) {
+    memories.push(info);
+    localStorage.setItem(MEMORY_KEY, JSON.stringify(memories));
+  }
+}
+
 function addMessage(message, type) {
   const div = document.createElement("div");
   div.className = "message " + type;
@@ -132,13 +150,55 @@ async function sendMessage() {
   addMessage(message, "user");
   userInput.value = "";
 
+  // Save personal information
+  const saveMatch = message.match(
+    /^(?:நினைவில் வை|remember)\s*[:：-]\s*(.+)$/i
+  );
+
+  if (saveMatch) {
+    saveMemory(saveMatch[1]);
+    addMessage("சரி! 🧠 இந்த தகவலை நினைவில் சேமித்துவிட்டேன்.", "bot");
+    return;
+  }
+
+  // Show saved memories
+  if (/நினைவில் வைத்ததை காட்டு|what do you remember/i.test(message)) {
+    const memories = getMemory();
+
+    addMessage(
+      memories.length
+        ? "என்னுடைய நினைவுகள்:\n" +
+          memories.map((m, i) => `${i + 1}. ${m}`).join("\n")
+        : "இன்னும் எந்த நினைவுகளும் சேமிக்கப்படவில்லை.",
+      "bot"
+    );
+    return;
+  }
+
+  // Clear saved memories
+  if (/எல்லா நினைவுகளையும் அழி|forget all memories/i.test(message)) {
+    localStorage.removeItem(MEMORY_KEY);
+    addMessage("சேமித்த நினைவுகள் அழிக்கப்பட்டன.", "bot");
+    return;
+  }
+
   try {
+    const memories = getMemory();
+
+    const memoryContext = memories.length
+      ? "Personal information voluntarily saved by the user:\n" +
+        memories.join("\n") +
+        "\nUse this information when relevant. Do not invent memories.\n\n"
+      : "";
+
     const response = await fetch("/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ message })
+      body: JSON.stringify({
+        message: memoryContext + "User: " + message
+      })
     });
 
     if (!response.ok) {
@@ -146,10 +206,15 @@ async function sendMessage() {
     }
 
     const data = await response.json();
+
     addMessage(data.reply, "bot");
 
     const speech = new SpeechSynthesisUtterance(data.reply);
-    speech.lang = "en-IN";
+
+    speech.lang = /[\u0B80-\u0BFF]/.test(data.reply)
+      ? "ta-IN"
+      : "en-IN";
+
     speechSynthesis.speak(speech);
 
   } catch (error) {
@@ -176,6 +241,7 @@ function startVoice() {
 
   const recognition = new SpeechRecognition();
   recognition.lang = "en-IN";
+
   recognition.onresult = function(event) {
     userInput.value = event.results[0][0].transcript;
     sendMessage();
