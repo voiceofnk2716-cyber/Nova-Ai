@@ -1,5 +1,4 @@
 
-
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -16,6 +15,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
+// NOVA Chat API
 app.post("/chat", async (req, res) => {
   try {
     const message = req.body.message;
@@ -26,12 +26,22 @@ app.post("/chat", async (req, res) => {
       });
     }
 
-    res.json({
-      reply: "Hello! I am NOVA AI. You said: " + message
-    });
+    // Basic NOVA response
+    let reply = "Hello! I am NOVA AI.";
+
+    if (/hello|hi/i.test(message)) {
+      reply = "Hello! Welcome back. I am NOVA AI.";
+    } else if (/உன் பெயர்|your name/i.test(message)) {
+      reply = "My name is NOVA AI.";
+    } else {
+      reply = "நான் NOVA AI. உன்னுடைய message எனக்கு கிடைத்தது!";
+    }
+
+    res.json({ reply });
 
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       reply: "Something went wrong."
     });
